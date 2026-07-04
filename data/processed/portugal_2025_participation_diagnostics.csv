@@ -1,4 +1,4 @@
-geography,turnout_percent,abstention_percent,abstentions_per_100_voters,turnout_gap_vs_total_pp,turnout_gap_vs_territory_pp,additional_voters_needed_to_match_total_turnout,additional_voters_needed_to_match_territory_turnout
-Total,58.25,41.75,71.66,0.0,-6.14,0,665584
-Territory,64.39,35.61,55.31,6.14,0.0,0,199
-Overseas,22.4,77.6,346.38,-35.85,-41.99,568083,665384
+geography,turnout_percent,abstention_percent,share_of_total_registered_percent,share_of_total_voters_percent,share_of_total_abstentions_percent,abstentions_per_100_voters,turnout_gap_vs_total_pp,turnout_gap_vs_territory_pp,turnout_ratio_vs_total,turnout_ratio_vs_territory,additional_voters_needed_to_match_total_turnout,additional_voters_needed_to_match_territory_turnout
+Total,58.25,41.75,100.0,100.0,100.0,71.66,0.0,-6.14,1.0,0.9,0,665584
+Territory,64.39,35.61,85.39,94.38,72.85,55.31,6.14,0.0,1.11,1.0,0,199
+Overseas,22.4,77.6,14.61,5.62,27.15,346.38,-35.85,-41.99,0.38,0.35,568083,665384

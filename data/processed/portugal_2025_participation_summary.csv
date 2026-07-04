@@ -1,0 +1,5 @@
+metric,value,interpretation
+overseas_share_of_registered_percent,14.61,"Overseas voters are a meaningful share of the electorate, not a negligible edge case."
+overseas_share_of_total_abstentions_percent,27.15,The share of total abstentions coming from overseas shows how much the national total is shaped by lower-access constituencies.
+territory_to_overseas_turnout_ratio,2.87,Territory turnout is several times higher than overseas turnout in the same election.
+overseas_abstentions_per_100_voters,346.38,This ratio gives the scale of non-participation overseas relative to actual overseas participation.
