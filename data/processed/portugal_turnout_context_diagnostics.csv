@@ -1,0 +1,5 @@
+metric,value,note
+turnout_gap_vs_2024_pp,-1.65,Difference between final official 2025 turnout and contextual 2024 turnout series.
+turnout_gap_vs_series_peak_pp,-33.45,Difference between 2025 turnout and the contextual series peak in 1975.
+additional_voters_needed_to_match_2024_turnout,178472.0,"Counterfactual based on contextual 2024 turnout. This is descriptive, not predictive."
+additional_voters_needed_to_match_series_peak,3628395.0,Counterfactual based on the contextual historical peak. It illustrates scale only.

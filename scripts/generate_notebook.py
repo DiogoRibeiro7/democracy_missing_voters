@@ -1,0 +1,593 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+import nbformat as nbf
+
+
+def build_notebook() -> nbf.NotebookNode:
+    nb = nbf.v4.new_notebook()
+    cells: list[nbf.NotebookNode] = []
+
+    cells.append(
+        nbf.v4.new_markdown_cell(
+            "# Democracy's Missing Voters - Data Audit Notebook\n\n"
+            "This notebook uses the validated processed datasets in the article package, "
+            "rebuilds publication tables from raw counts, regenerates the figures, and "
+            "documents the provenance and limitations of the published analysis."
+        )
+    )
+    cells.append(
+        nbf.v4.new_markdown_cell(
+            "## 1. Scope and questions\n\n"
+            "Questions answered here:\n\n"
+            "- What do the final official Portugal 2025 participation totals show?\n"
+            "- How different is overseas participation from participation in the territory?\n"
+            "- What does the OECD 2024 trust and political voice gap suggest?\n"
+            "- What limitations still apply to the historical turnout context series?\n\n"
+            "The notebook is intentionally sober. It treats official, contextual, and derived values differently, "
+            "and it adds diagnostic tables so the analysis goes beyond headline percentages."
+        )
+    )
+    cells.append(
+        nbf.v4.new_code_cell(
+            "from __future__ import annotations\n\n"
+            "from datetime import datetime\n"
+            "from pathlib import Path\n\n"
+            "import matplotlib.pyplot as plt\n"
+            "import pandas as pd\n"
+            "from IPython.display import Markdown, display\n\n"
+            "from democracy_turnout_extract.models import ElectionTotals\n"
+            "from democracy_turnout_extract.validators import validate_final_cne_2025_totals\n"
+            "from democracy_turnout_notebook import (\n"
+            "    build_source_provenance_table,\n"
+            "    build_validation_report,\n"
+            "    export_current_figure,\n"
+            "    validate_count_identity,\n"
+            "    validate_percentage_identity,\n"
+            ")\n\n"
+            "REPO_ROOT = Path.cwd()\n"
+            "DATA_DIR = REPO_ROOT / 'data'\n"
+            "PROCESSED_DIR = DATA_DIR / 'processed'\n"
+            "FIGURES_DIR = REPO_ROOT / 'figures'\n"
+            "EXPECTED_DIRS = [DATA_DIR, FIGURES_DIR, REPO_ROOT / 'notebooks']\n"
+            "PROCESSED_CSVS = {\n"
+            "    'official_totals': PROCESSED_DIR / 'portugal_2025_final_totals.csv',\n"
+            "    'official_geography': PROCESSED_DIR / 'portugal_2025_participation_breakdown.csv',\n"
+            "    'official_trust': PROCESSED_DIR / 'oecd_2024_trust_indicators.csv',\n"
+            "    'historical_turnout': PROCESSED_DIR / 'portugal_legislative_turnout_1975_2025_corrected.csv',\n"
+            "}\n"
+            "for required_dir in EXPECTED_DIRS:\n"
+            "    assert required_dir.exists(), f'Missing required directory: {required_dir}'\n"
+            "for required_file in PROCESSED_CSVS.values():\n"
+            "    assert required_file.exists(), f'Missing required CSV: {required_file}'\n\n"
+            "pd.set_option('display.max_colwidth', 120)\n"
+            "plt.rcParams.update({\n"
+            "    'font.size': 11,\n"
+            "    'axes.titlesize': 15,\n"
+            "    'axes.labelsize': 11,\n"
+            "    'xtick.labelsize': 10,\n"
+            "    'ytick.labelsize': 10,\n"
+            "    'figure.facecolor': 'white',\n"
+            "    'axes.facecolor': 'white',\n"
+            "})\n"
+        )
+    )
+    cells.append(
+        nbf.v4.new_markdown_cell(
+            "## 2. Load repository data\n\n"
+            "The notebook loads only validated processed outputs. "
+            "That keeps the analysis aligned with the final official CNE 2025 totals "
+            "and avoids reintroducing superseded intermediate article datasets."
+        )
+    )
+    cells.append(
+        nbf.v4.new_code_cell(
+            "historical_turnout = pd.read_csv(PROCESSED_CSVS['historical_turnout'])\n"
+            "official_totals = pd.read_csv(PROCESSED_CSVS['official_totals'])\n"
+            "official_geography = pd.read_csv(PROCESSED_CSVS['official_geography'])\n"
+            "official_trust = pd.read_csv(PROCESSED_CSVS['official_trust'])\n\n"
+            "display(Markdown('### Final official 2025 outputs'))\n"
+            "display(official_totals)\n"
+            "display(official_geography)\n"
+        )
+    )
+    cells.append(
+        nbf.v4.new_markdown_cell(
+            "## 3. Rebuild computed datasets from raw counts\n\n"
+            "For 2025, raw counts are treated as the source of truth. The notebook recomputes turnout "
+            "and abstention percentages from counts, then compares those values with the stored processed percentages."
+        )
+    )
+    cells.append(
+        nbf.v4.new_code_cell(
+            "official_total_row = official_totals.iloc[0].copy()\n"
+            "official_total_row['computed_turnout_percent'] = round(\n"
+            "    official_total_row['voters'] / official_total_row['registered_voters'] * 100, 2\n"
+            ")\n"
+            "official_total_row['computed_abstention_percent'] = round(\n"
+            "    official_total_row['abstentions'] / official_total_row['registered_voters'] * 100, 2\n"
+            ")\n"
+            "official_total_row['reported_turnout_percent'] = official_total_row['turnout_percent']\n"
+            "official_total_row['reported_abstention_percent'] = official_total_row['abstention_percent']\n"
+            "official_total_row['difference_turnout_pp'] = round(\n"
+            "    official_total_row['reported_turnout_percent'] - official_total_row['computed_turnout_percent'], 2\n"
+            ")\n"
+            "official_total_row['difference_abstention_pp'] = round(\n"
+            "    official_total_row['reported_abstention_percent'] - official_total_row['computed_abstention_percent'], 2\n"
+            ")\n"
+            "official_comparison = pd.DataFrame([official_total_row])[\n"
+            "    [\n"
+            "        'registered_voters',\n"
+            "        'voters',\n"
+            "        'abstentions',\n"
+            "        'reported_turnout_percent',\n"
+            "        'computed_turnout_percent',\n"
+            "        'reported_abstention_percent',\n"
+            "        'computed_abstention_percent',\n"
+            "        'difference_turnout_pp',\n"
+            "        'difference_abstention_pp',\n"
+            "    ]\n"
+            "]\n\n"
+            "official_breakdown = official_geography.copy()\n"
+            "official_breakdown['reported_turnout_percent'] = official_breakdown['turnout_percent']\n"
+            "official_breakdown['reported_abstention_percent'] = official_breakdown['abstention_percent']\n"
+            "official_breakdown['computed_turnout_percent'] = (\n"
+            "    official_breakdown['voters'] / official_breakdown['registered_voters'] * 100\n"
+            ").round(2)\n"
+            "official_breakdown['computed_abstention_percent'] = (\n"
+            "    official_breakdown['abstentions'] / official_breakdown['registered_voters'] * 100\n"
+            ").round(2)\n"
+            "official_breakdown['difference_turnout_pp'] = (\n"
+            "    official_breakdown['reported_turnout_percent'] - official_breakdown['computed_turnout_percent']\n"
+            ").round(2)\n"
+            "official_breakdown['difference_abstention_pp'] = (\n"
+            "    official_breakdown['reported_abstention_percent'] - official_breakdown['computed_abstention_percent']\n"
+            ").round(2)\n\n"
+            "national_participation_table = official_totals[\n"
+            "    ['registered_voters', 'voters', 'abstentions', 'turnout_percent', 'abstention_percent']\n"
+            "].copy()\n"
+            "geography_table = official_geography[\n"
+            "    ['geography', 'registered_voters', 'voters', 'abstentions', 'turnout_percent', 'abstention_percent']\n"
+            "].copy()\n"
+            "trust_gap_table = official_trust.rename(columns={'value_percent': 'percent'})[\n"
+            "    ['indicator_name', 'population', 'percent']\n"
+            "].copy()\n"
+            "trust_gap_table['indicator_name'] = trust_gap_table['indicator_name'].replace({\n"
+            "    'trust_national_government': 'Trust national government',\n"
+            "    'low_or_no_trust_national_government': 'Low or no trust national government',\n"
+            "    'trust_if_feel_have_say': 'Trust if feel have a say',\n"
+            "    'trust_if_feel_no_say': 'Trust if feel no say',\n"
+            "})\n\n"
+            "display(official_comparison)\n"
+            "display(official_breakdown)\n"
+            "display(Markdown('### Historical turnout context series'))\n"
+            "display(historical_turnout.tail())\n"
+        )
+    )
+    cells.append(
+        nbf.v4.new_markdown_cell(
+            "## 4. Participation diagnostics\n\n"
+            "Headline turnout is useful, but it hides the size and shape of the participation gap. "
+            "This section translates the validated counts into more interpretable diagnostics: "
+            "turnout gaps, abstention-to-voter ratios, and simple counterfactuals."
+        )
+    )
+    cells.append(
+        nbf.v4.new_code_cell(
+            "official_turnout_value = float(official_total_row['reported_turnout_percent'])\n"
+            "official_registered_value = int(official_total_row['registered_voters'])\n"
+            "official_voters_value = int(official_total_row['voters'])\n"
+            "territory_turnout_value = float(territory_row['turnout_percent']) if 'territory_row' in globals() else float(official_geography.loc[official_geography['geography'] == 'Territory', 'turnout_percent'].iloc[0])\n"
+            "overseas_turnout_value = float(overseas_row['turnout_percent']) if 'overseas_row' in globals() else float(official_geography.loc[official_geography['geography'] == 'Overseas', 'turnout_percent'].iloc[0])\n\n"
+            "diagnostic_rows = []\n"
+            "for _, row in official_geography.iterrows():\n"
+            "    row_registered = int(row['registered_voters'])\n"
+            "    row_voters = int(row['voters'])\n"
+            "    row_abstentions = int(row['abstentions'])\n"
+            "    row_turnout = float(row['turnout_percent'])\n"
+            "    diagnostic_rows.append({\n"
+            "        'geography': row['geography'],\n"
+            "        'turnout_percent': row_turnout,\n"
+            "        'abstention_percent': float(row['abstention_percent']),\n"
+            "        'abstentions_per_100_voters': round(row_abstentions / row_voters * 100, 2),\n"
+            "        'turnout_gap_vs_total_pp': round(row_turnout - official_turnout_value, 2),\n"
+            "        'turnout_gap_vs_territory_pp': round(row_turnout - territory_turnout_value, 2),\n"
+            "        'additional_voters_needed_to_match_total_turnout': max(round(row_registered * official_turnout_value / 100 - row_voters), 0),\n"
+            "        'additional_voters_needed_to_match_territory_turnout': max(round(row_registered * territory_turnout_value / 100 - row_voters), 0),\n"
+            "    })\n"
+            "participation_diagnostics = pd.DataFrame(diagnostic_rows)\n\n"
+            "peak_turnout_row = historical_turnout.loc[historical_turnout['turnout_percent'].idxmax()]\n"
+            "turnout_2024 = float(historical_turnout.loc[historical_turnout['year'] == 2024, 'turnout_percent'].iloc[0])\n"
+            "turnout_context_diagnostics = pd.DataFrame([\n"
+            "    {\n"
+            "        'metric': 'turnout_gap_vs_2024_pp',\n"
+            "        'value': round(official_turnout_value - turnout_2024, 2),\n"
+            "        'note': 'Difference between final official 2025 turnout and contextual 2024 turnout series.',\n"
+            "    },\n"
+            "    {\n"
+            "        'metric': 'turnout_gap_vs_series_peak_pp',\n"
+            "        'value': round(official_turnout_value - float(peak_turnout_row['turnout_percent']), 2),\n"
+            "        'note': f\"Difference between 2025 turnout and the contextual series peak in {int(peak_turnout_row['year'])}.\",\n"
+            "    },\n"
+            "    {\n"
+            "        'metric': 'additional_voters_needed_to_match_2024_turnout',\n"
+            "        'value': int(max(round(official_registered_value * turnout_2024 / 100 - official_voters_value), 0)),\n"
+            "        'note': 'Counterfactual based on contextual 2024 turnout. This is descriptive, not predictive.',\n"
+            "    },\n"
+            "    {\n"
+            "        'metric': 'additional_voters_needed_to_match_series_peak',\n"
+            "        'value': int(max(round(official_registered_value * float(peak_turnout_row['turnout_percent']) / 100 - official_voters_value), 0)),\n"
+            "        'note': 'Counterfactual based on the contextual historical peak. It illustrates scale only.',\n"
+            "    },\n"
+            "])\n\n"
+            "trust_values = {row['indicator_name']: float(row['value_percent']) for _, row in official_trust.iterrows()}\n"
+            "trust_gap_diagnostics = pd.DataFrame([\n"
+            "    {\n"
+            "        'metric': 'net_trust_balance_pp',\n"
+            "        'value': round(trust_values['trust_national_government'] - trust_values['low_or_no_trust_national_government'], 2),\n"
+            "        'note': 'Trust minus low-or-no-trust across the OECD average.',\n"
+            "    },\n"
+            "    {\n"
+            "        'metric': 'voice_trust_gap_pp',\n"
+            "        'value': round(trust_values['trust_if_feel_have_say'] - trust_values['trust_if_feel_no_say'], 2),\n"
+            "        'note': 'Absolute trust gap between respondents who feel they have a say and those who do not.',\n"
+            "    },\n"
+            "    {\n"
+            "        'metric': 'voice_trust_ratio',\n"
+            "        'value': round(trust_values['trust_if_feel_have_say'] / trust_values['trust_if_feel_no_say'], 2),\n"
+            "        'note': 'Relative trust ratio between high-voice and low-voice respondents.',\n"
+            "    },\n"
+            "])\n\n"
+            "participation_diagnostics.to_csv(PROCESSED_DIR / 'portugal_2025_participation_diagnostics.csv', index=False)\n"
+            "turnout_context_diagnostics.to_csv(PROCESSED_DIR / 'portugal_turnout_context_diagnostics.csv', index=False)\n"
+            "trust_gap_diagnostics.to_csv(PROCESSED_DIR / 'oecd_2024_trust_gap_diagnostics.csv', index=False)\n\n"
+            "display(Markdown('### Participation diagnostics'))\n"
+            "display(participation_diagnostics)\n"
+            "display(Markdown('### Turnout context diagnostics'))\n"
+            "display(turnout_context_diagnostics)\n"
+            "display(Markdown('### Trust gap diagnostics'))\n"
+            "display(trust_gap_diagnostics)\n\n"
+            "display(Markdown(\n"
+            "    f\"The participation gap between territory and overseas voters is {territory_turnout_value - overseas_turnout_value:.2f} percentage points. \"\n"
+            "    f\"Overseas turnout would have required roughly {int(participation_diagnostics.loc[participation_diagnostics['geography'] == 'Overseas', 'additional_voters_needed_to_match_territory_turnout'].iloc[0]):,} additional voters to match the territory rate.\"\n"
+            "))\n"
+        )
+    )
+    cells.append(
+        nbf.v4.new_markdown_cell(
+            "## 5. Data Validation\n\n"
+            "Strict checks apply to the final official 2025 totals, the derived geography breakdown, "
+            "and the OECD 2024 indicators."
+        )
+    )
+    cells.append(
+        nbf.v4.new_code_cell(
+            "validation_results = []\n\n"
+            "official_registered = int(official_total_row['registered_voters'])\n"
+            "official_voters = int(official_total_row['voters'])\n"
+            "official_abstentions = int(official_total_row['abstentions'])\n"
+            "official_turnout = float(official_total_row['reported_turnout_percent'])\n"
+            "official_abstention = float(official_total_row['reported_abstention_percent'])\n\n"
+            "validation_results.append(\n"
+            "    validate_count_identity(\n"
+            "        'official_total_count_identity',\n"
+            "        official_registered,\n"
+            "        official_voters,\n"
+            "        official_abstentions,\n"
+            "    )\n"
+            ")\n"
+            "validation_results.extend(\n"
+            "    validate_percentage_identity(\n"
+            "        'official_total_percentage_identity',\n"
+            "        official_registered,\n"
+            "        official_voters,\n"
+            "        official_abstentions,\n"
+            "        official_turnout,\n"
+            "        official_abstention,\n"
+            "    )\n"
+            ")\n\n"
+            "territory_row = official_geography.loc[official_geography['geography'] == 'Territory'].iloc[0]\n"
+            "overseas_row = official_geography.loc[official_geography['geography'] == 'Overseas'].iloc[0]\n"
+            "validation_results.append(\n"
+            "    validate_count_identity(\n"
+            "        'official_geography_registered_identity',\n"
+            "        official_registered,\n"
+            "        int(territory_row['registered_voters']),\n"
+            "        int(overseas_row['registered_voters']),\n"
+            "    )\n"
+            ")\n"
+            "validation_results.append(\n"
+            "    validate_count_identity(\n"
+            "        'official_geography_voter_identity',\n"
+            "        official_voters,\n"
+            "        int(territory_row['voters']),\n"
+            "        int(overseas_row['voters']),\n"
+            "    )\n"
+            ")\n"
+            "validation_results.append(\n"
+            "    validate_count_identity(\n"
+            "        'official_geography_abstention_identity',\n"
+            "        official_abstentions,\n"
+            "        int(territory_row['abstentions']),\n"
+            "        int(overseas_row['abstentions']),\n"
+            "    )\n"
+            ")\n\n"
+            "required_indicators = {\n"
+            "    'trust_national_government',\n"
+            "    'low_or_no_trust_national_government',\n"
+            "    'trust_if_feel_have_say',\n"
+            "    'trust_if_feel_no_say',\n"
+            "}\n"
+            "observed_indicators = set(official_trust['indicator_name'])\n"
+            "indicator_status = 'pass' if observed_indicators == required_indicators else 'fail'\n"
+            "validation_results.append(\n"
+            "    type(validation_results[0])(\n"
+            "        check_name='oecd_required_indicators_present',\n"
+            "        status=indicator_status,\n"
+            "        expected=', '.join(sorted(required_indicators)),\n"
+            "        observed=', '.join(sorted(observed_indicators)),\n"
+            "        tolerance=0.0,\n"
+            "        message='all required OECD indicators are present'\n"
+            "        if indicator_status == 'pass'\n"
+            "        else 'missing required OECD indicators',\n"
+            "    )\n"
+            ")\n"
+            "for _, trust_row in official_trust.iterrows():\n"
+            "    percent_ok = 0 <= float(trust_row['value_percent']) <= 100\n"
+            "    validation_results.append(\n"
+            "        type(validation_results[0])(\n"
+            "            check_name=f\"oecd_range_{trust_row['indicator_name']}\",\n"
+            "            status='pass' if percent_ok else 'fail',\n"
+            "            expected='0-100',\n"
+            "            observed=f\"{float(trust_row['value_percent']):.2f}\",\n"
+            "            tolerance=0.0,\n"
+            "            message='indicator is within range' if percent_ok else 'indicator is out of range',\n"
+            "        )\n"
+            "    )\n\n"
+            "validation_report = build_validation_report(validation_results)\n"
+            "PROCESSED_DIR.mkdir(parents=True, exist_ok=True)\n"
+            "validation_report.to_csv(PROCESSED_DIR / 'notebook_validation_report.csv', index=False)\n"
+            "display(validation_report)\n\n"
+            "strict_failures = validation_report.loc[validation_report['status'] == 'fail']\n"
+            "if not strict_failures.empty:\n"
+            "    raise ValueError('Strict notebook validation failed. Review notebook_validation_report.csv.')\n"
+            "official_model = ElectionTotals(\n"
+            "    source_name=str(official_total_row['source_name']),\n"
+            "    source_url=str(official_total_row['source_url']),\n"
+            "    source_status=str(official_total_row['source_status']),\n"
+            "    election_name=str(official_total_row['election_name']),\n"
+            "    election_date=pd.to_datetime(official_total_row['election_date']).date(),\n"
+            "    publication_date=pd.to_datetime(official_total_row['publication_date']).date(),\n"
+            "    registered_voters=int(official_total_row['registered_voters']),\n"
+            "    voters=int(official_total_row['voters']),\n"
+            "    abstentions=int(official_total_row['abstentions']),\n"
+            "    turnout_percent=float(official_total_row['reported_turnout_percent']),\n"
+            "    abstention_percent=float(official_total_row['reported_abstention_percent']),\n"
+            ")\n"
+            "validate_final_cne_2025_totals(official_model)\n"
+        )
+    )
+    cells.append(
+        nbf.v4.new_markdown_cell(
+            "## 6. Source Provenance\n\n"
+            "This table is the notebook's audit trail. It distinguishes final official, contextual, and derived inputs."
+        )
+    )
+    cells.append(
+        nbf.v4.new_code_cell(
+            "source_provenance = build_source_provenance_table(datetime.utcnow())\n"
+            "source_provenance.to_csv(DATA_DIR / 'source_provenance.csv', index=False)\n"
+            "display(source_provenance)\n"
+        )
+    )
+    cells.append(
+        nbf.v4.new_markdown_cell(
+            "## 7. Article-ready tables\n\n"
+            "These compact tables are built from the official processed counts and are safe to quote in the article package."
+        )
+    )
+    cells.append(
+        nbf.v4.new_code_cell(
+            "national_participation_table.to_csv(\n"
+            "    PROCESSED_DIR / 'table_1_portugal_2025_national_participation.csv', index=False\n"
+            ")\n"
+            "geography_table.to_csv(\n"
+            "    PROCESSED_DIR / 'table_2_portugal_2025_geography_breakdown.csv', index=False\n"
+            ")\n"
+            "trust_gap_table.to_csv(PROCESSED_DIR / 'table_3_oecd_trust_gap.csv', index=False)\n"
+            "official_comparison.to_csv(PROCESSED_DIR / 'portugal_2025_percentage_comparison.csv', index=False)\n"
+            "official_breakdown.to_csv(PROCESSED_DIR / 'portugal_2025_geography_percentage_comparison.csv', index=False)\n"
+            "display(Markdown('### Table 1 - Portugal 2025 national participation'))\n"
+            "display(national_participation_table)\n"
+            "display(Markdown('### Table 2 - Portugal 2025 geography breakdown'))\n"
+            "display(geography_table)\n"
+            "display(Markdown('### Table 3 - OECD trust gap'))\n"
+            "display(trust_gap_table)\n"
+        )
+    )
+    cells.append(
+        nbf.v4.new_markdown_cell(
+            "## 8. Figures\n\n"
+            "Each figure uses Matplotlib only, a single chart per figure, and a source note placed inside the exported image."
+        )
+    )
+    cells.append(
+        nbf.v4.new_code_cell(
+            "color_main = '#1f4e79'\n"
+            "color_alt = '#7a8793'\n"
+            "color_warn = '#b55d3d'\n"
+            "color_light = '#d9e2ec'\n\n"
+            "# Figure 1\n"
+            "fig, ax = plt.subplots(figsize=(9, 5.6))\n"
+            "ax.plot(historical_turnout['year'], historical_turnout['turnout_percent'], color=color_main, linewidth=2.5)\n"
+            "ax.scatter(historical_turnout['year'], historical_turnout['turnout_percent'], color=color_main, s=18)\n"
+            "ax.set_title('Portugal legislative turnout, 1975-2025')\n"
+            "ax.set_xlabel('Election year')\n"
+            "ax.set_ylabel('Turnout percent')\n"
+            "ax.set_ylim(40, 95)\n"
+            "ax.grid(axis='y', alpha=0.25)\n"
+            "fig.text(\n"
+            "    0.01,\n"
+            "    -0.05,\n"
+            "    'Source: repository historical turnout series. 2025 updated to final official CNE turnout; earlier years require official revalidation.',\n"
+            "    ha='left',\n"
+            "    fontsize=9,\n"
+            ")\n"
+            "export_current_figure(fig, FIGURES_DIR / 'figure_1_portugal_turnout_1975_2025.png')\n"
+            "plt.show()\n\n"
+            "# Figure 2\n"
+            "fig, ax = plt.subplots(figsize=(7.8, 5.4))\n"
+            "labels = ['Voted', 'Did not vote']\n"
+            "counts = [int(official_total_row['voters']), int(official_total_row['abstentions'])]\n"
+            "bars = ax.bar(labels, counts, color=[color_main, color_warn], width=0.6)\n"
+            "ax.set_title('Portugal 2025 voters versus non-voters')\n"
+            "ax.set_ylabel('People')\n"
+            "for bar, value in zip(bars, counts):\n"
+            "    ax.text(bar.get_x() + bar.get_width() / 2, value + 50000, f'{value:,}', ha='center', va='bottom', fontsize=10)\n"
+            "fig.text(\n"
+            "    0.01,\n"
+            "    -0.05,\n"
+            "    'Source: final official CNE 2025 totals from Mapa Oficial n.o 2-A/2025.',\n"
+            "    ha='left',\n"
+            "    fontsize=9,\n"
+            ")\n"
+            "export_current_figure(fig, FIGURES_DIR / 'figure_2_portugal_2025_voters_vs_nonvoters.png')\n"
+            "plt.show()\n\n"
+            "# Figure 3\n"
+            "fig, ax = plt.subplots(figsize=(8.6, 5.6))\n"
+            "bars = ax.bar(\n"
+            "    geography_table['geography'],\n"
+            "    geography_table['abstention_percent'],\n"
+            "    color=[color_alt, color_main, color_warn],\n"
+            "    width=0.62,\n"
+            ")\n"
+            "ax.set_title('Portugal 2025 abstention by total, territory, and overseas')\n"
+            "ax.set_ylabel('Abstention percent')\n"
+            "ax.set_ylim(0, 85)\n"
+            "ax.grid(axis='y', alpha=0.25)\n"
+            "for bar, value in zip(bars, geography_table['abstention_percent']):\n"
+            "    ax.text(bar.get_x() + bar.get_width() / 2, value + 1.0, f'{value:.2f}%', ha='center', va='bottom', fontsize=10)\n"
+            "fig.text(\n"
+            "    0.01,\n"
+            "    -0.05,\n"
+            "    'Source: final official CNE totals. Territory is derived as Total minus Overseas. Overseas is derived from Europa plus Fora da Europa.',\n"
+            "    ha='left',\n"
+            "    fontsize=9,\n"
+            ")\n"
+            "export_current_figure(fig, FIGURES_DIR / 'figure_3_portugal_2025_abstention_geography.png')\n"
+            "plt.show()\n\n"
+            "# Figure 4\n"
+            "fig, ax = plt.subplots(figsize=(9, 5.8))\n"
+            "ordered = trust_gap_table.copy()\n"
+            "bars = ax.barh(ordered['indicator_name'], ordered['percent'], color=[color_main, color_alt, color_main, color_warn])\n"
+            "ax.set_title('OECD trust and political voice gap, 2024')\n"
+            "ax.set_xlabel('Percent')\n"
+            "ax.set_xlim(0, 80)\n"
+            "ax.grid(axis='x', alpha=0.25)\n"
+            "for bar, value in zip(bars, ordered['percent']):\n"
+            "    ax.text(value + 1.0, bar.get_y() + bar.get_height() / 2, f'{value:.0f}%', va='center', fontsize=10)\n"
+            "fig.text(\n"
+            "    0.01,\n"
+            "    -0.07,\n"
+            "    'Source: OECD Survey on Drivers of Trust in Public Institutions - 2024 Results. The 69/22 values come from the report text excerpt.',\n"
+            "    ha='left',\n"
+            "    fontsize=9,\n"
+            ")\n"
+            "export_current_figure(fig, FIGURES_DIR / 'figure_4_oecd_trust_voice_gap.png')\n"
+            "plt.show()\n"
+        )
+    )
+    cells.append(
+        nbf.v4.new_markdown_cell(
+            "## 9. Interpretation and limitations\n\n"
+            "- Overseas participation is far below participation in the territory.\n"
+            "- The diagnostics section shows that the territory-overseas turnout gap is not marginal; it is structurally large in percentage-point and absolute-voter terms.\n"
+            "- The OECD trust gap is also a political voice gap: respondents who feel they have a say report much higher trust than those who do not.\n"
+            "- The counterfactual turnout metrics are descriptive scale checks, not forecasts and not causal estimates.\n"
+            "- The historical turnout line remains useful context, but earlier years should be revalidated from official primary sources before being treated as publication-grade."
+        )
+    )
+    cells.append(
+        nbf.v4.new_markdown_cell(
+            "## 10. Future Extension: Municipal Abstention Model\n\n"
+            "This section is scaffolding only. It does not claim that municipality-level data is already extracted."
+        )
+    )
+    cells.append(
+        nbf.v4.new_code_cell(
+            "def load_municipality_election_data(path: Path) -> pd.DataFrame:\n"
+            "    \"\"\"Load municipality-level election data once an official dataset is available.\"\"\"\n"
+            "    raise NotImplementedError('Municipality-level election extraction is future work.')\n\n"
+            "def load_municipality_indicators(path: Path) -> pd.DataFrame:\n"
+            "    \"\"\"Load municipality-level socio-economic indicators for later joins.\"\"\"\n"
+            "    raise NotImplementedError('Municipality-level indicator extraction is future work.')\n\n"
+            "def normalize_municipality_names(frame: pd.DataFrame) -> pd.DataFrame:\n"
+            "    \"\"\"Normalize municipality names before any joins across sources.\"\"\"\n"
+            "    raise NotImplementedError('Municipality name normalization is future work.')\n\n"
+            "def join_municipality_datasets(election_data: pd.DataFrame, indicators: pd.DataFrame) -> pd.DataFrame:\n"
+            "    \"\"\"Join election and socio-economic data using stable municipality keys where possible.\"\"\"\n"
+            "    raise NotImplementedError('Municipality joins are future work.')\n\n"
+            "display(Markdown(\n"
+            "    'Future work should document key choice, municipality name normalization, and the risk of ecological fallacy. Correlation would not prove individual voting behaviour.'\n"
+            "))\n"
+        )
+    )
+    cells.append(
+        nbf.v4.new_markdown_cell(
+            "## 11. Notebook quality checks\n\n"
+            "The final cell asserts that the notebook produced the expected outputs."
+        )
+    )
+    cells.append(
+        nbf.v4.new_code_cell(
+            "expected_figures = [\n"
+            "    FIGURES_DIR / 'figure_1_portugal_turnout_1975_2025.png',\n"
+            "    FIGURES_DIR / 'figure_2_portugal_2025_voters_vs_nonvoters.png',\n"
+            "    FIGURES_DIR / 'figure_3_portugal_2025_abstention_geography.png',\n"
+            "    FIGURES_DIR / 'figure_4_oecd_trust_voice_gap.png',\n"
+            "]\n"
+            "expected_csv_outputs = [\n"
+            "    PROCESSED_DIR / 'notebook_validation_report.csv',\n"
+            "    DATA_DIR / 'source_provenance.csv',\n"
+            "    PROCESSED_DIR / 'table_1_portugal_2025_national_participation.csv',\n"
+            "    PROCESSED_DIR / 'table_2_portugal_2025_geography_breakdown.csv',\n"
+            "    PROCESSED_DIR / 'table_3_oecd_trust_gap.csv',\n"
+            "    PROCESSED_DIR / 'portugal_2025_participation_diagnostics.csv',\n"
+            "    PROCESSED_DIR / 'portugal_turnout_context_diagnostics.csv',\n"
+            "    PROCESSED_DIR / 'oecd_2024_trust_gap_diagnostics.csv',\n"
+            "]\n"
+            "for path in expected_figures + expected_csv_outputs:\n"
+            "    assert path.exists(), f'Missing expected output: {path}'\n"
+            "assert validation_report.loc[validation_report['status'] == 'fail'].empty, 'Validation report contains strict failures.'\n"
+            "assert not source_provenance.empty, 'Source provenance table is missing.'\n"
+            "assert int(official_total_row['registered_voters']) == 10_848_816\n"
+            "assert int(official_total_row['voters']) == 6_319_969\n"
+            "assert int(official_total_row['abstentions']) == 4_528_847\n"
+            "assert float(official_total_row['reported_turnout_percent']) == 58.25\n"
+            "assert float(official_total_row['reported_abstention_percent']) == 41.75\n"
+            "print('Notebook quality checks passed. Figures, tables, provenance, and strict validations are in place.')\n"
+        )
+    )
+
+    nb["cells"] = cells
+    nb["metadata"] = {
+        "kernelspec": {
+            "display_name": "Python 3",
+            "language": "python",
+            "name": "python3",
+        },
+        "language_info": {"name": "python", "version": "3.11"},
+    }
+    return nb
+
+
+def main() -> None:
+    notebook_path = Path(__file__).resolve().parents[1] / "notebooks" / "democracy_missing_voters_analysis.ipynb"
+    notebook = build_notebook()
+    nbf.write(notebook, notebook_path)
+    print(notebook_path)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,27 @@
+{
+  "generated_at": "2026-07-04T21:25:27.756832Z",
+  "entries": [
+    {
+      "source_name": "Comissao Nacional de Eleicoes",
+      "source_url": "https://files.diariodarepublica.pt/1s/2025/05/104a00/0000200016.pdf",
+      "download_timestamp": "2026-07-04T21:25:27.756839Z",
+      "content_hash": "5c0574aca8b6535028d2c43cbd7503c26984869e8ae0416f61ecab93be2e3aaf",
+      "extraction_function": "extract_ar2025_totals_from_cne_pdf",
+      "extracted_rows": 3,
+      "validation_status": "passed",
+      "warnings": [],
+      "source_status": "final_official"
+    },
+    {
+      "source_name": "OECD Survey on Drivers of Trust in Public Institutions 2024 Results",
+      "source_url": "https://www.oecd.org/en/publications/oecd-survey-on-drivers-of-trust-in-public-institutions-2024-results_9a20554b-en.html",
+      "download_timestamp": "2026-07-04T21:25:27.756983Z",
+      "content_hash": "d4e6760c4df05cf672eca75a5fe9fbecf31a16acedb5aae9d62dad37f5472520",
+      "extraction_function": "fetch_oecd_trust_2024_indicators",
+      "extracted_rows": 4,
+      "validation_status": "passed",
+      "warnings": [],
+      "source_status": "contextual"
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+geography,registered_voters,voters,abstentions,turnout_percent,abstention_percent,reported_turnout_percent,reported_abstention_percent,computed_turnout_percent,computed_abstention_percent,difference_turnout_pp,difference_abstention_pp
+Total,10848816,6319969,4528847,58.25,41.75,58.25,41.75,58.25,41.75,0.0,0.0
+Territory,9264094,5964951,3299143,64.39,35.61,64.39,35.61,64.39,35.61,0.0,0.0
+Overseas,1584722,355018,1229704,22.4,77.6,22.4,77.6,22.4,77.6,0.0,0.0

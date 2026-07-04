@@ -1,0 +1,13 @@
+check_name,status,expected,observed,tolerance,message
+official_total_count_identity,pass,10848816,10848816,0.0,registered_voters equals voters + abstentions
+official_total_percentage_identity_turnout,pass,58.25,58.25,0.05,turnout percent matches computed value
+official_total_percentage_identity_abstention,pass,41.75,41.75,0.05,abstention percent matches computed value
+official_total_percentage_identity_sum,pass,100.00,100.00,0.05,turnout and abstention sum to 100
+official_geography_registered_identity,pass,10848816,10848816,0.0,registered_voters equals voters + abstentions
+official_geography_voter_identity,pass,6319969,6319969,0.0,registered_voters equals voters + abstentions
+official_geography_abstention_identity,pass,4528847,4528847,0.0,registered_voters equals voters + abstentions
+oecd_required_indicators_present,pass,"low_or_no_trust_national_government, trust_if_feel_have_say, trust_if_feel_no_say, trust_national_government","low_or_no_trust_national_government, trust_if_feel_have_say, trust_if_feel_no_say, trust_national_government",0.0,all required OECD indicators are present
+oecd_range_low_or_no_trust_national_government,pass,0-100,44.00,0.0,indicator is within range
+oecd_range_trust_if_feel_have_say,pass,0-100,69.00,0.0,indicator is within range
+oecd_range_trust_if_feel_no_say,pass,0-100,22.00,0.0,indicator is within range
+oecd_range_trust_national_government,pass,0-100,39.00,0.0,indicator is within range

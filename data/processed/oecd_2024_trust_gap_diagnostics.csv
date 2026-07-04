@@ -1,0 +1,4 @@
+metric,value,note
+net_trust_balance_pp,-5.0,Trust minus low-or-no-trust across the OECD average.
+voice_trust_gap_pp,47.0,Absolute trust gap between respondents who feel they have a say and those who do not.
+voice_trust_ratio,3.14,Relative trust ratio between high-voice and low-voice respondents.

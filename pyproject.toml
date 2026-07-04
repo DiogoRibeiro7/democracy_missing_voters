@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "democracy_turnout_extract"
+version = "0.1.0"
+description = "Reproducible extraction of Portugal 2025 turnout and OECD 2024 trust indicators."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "beautifulsoup4>=4.12",
+  "nbclient>=0.10",
+  "nbformat>=5.10",
+  "pandas>=2.2",
+  "pdfplumber>=0.11",
+  "pydantic>=2.7",
+  "requests>=2.32",
+  "typer>=0.12",
+]
+
+[project.optional-dependencies]
+dev = [
+  "mypy>=1.10",
+  "pytest>=8.2",
+  "requests-mock>=1.12",
+  "responses>=0.25",
+  "ruff>=0.5",
+]
+
+[project.scripts]
+democracy-turnout-extract = "democracy_turnout_extract.cli:app"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+markers = [
+  "integration: marks tests that require live internet resources",
+]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["notebooks/*.ipynb", "scripts/generate_notebook.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["B008"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+mypy_path = ["src"]
+packages = ["democracy_turnout_extract"]
