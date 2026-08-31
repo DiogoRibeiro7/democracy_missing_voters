@@ -75,3 +75,9 @@ Update source URLs and year-specific validation targets in `src/democracy_turnou
 - Territory is derived, not scraped directly.
 - Historical turnout series in the article data should be rebuilt from official primary sources before being treated as fully publication-grade.
 - OECD 2024 values are intentionally pinned for the article package unless the article itself is updated.
+
+## Licence
+
+Code is [MIT](LICENSE). Data, derived tables and manuscript text are
+[CC BY 4.0](LICENSE-DATA.md). Third-party source data keeps its provider's terms — see
+[`LICENSE-DATA.md`](LICENSE-DATA.md).
